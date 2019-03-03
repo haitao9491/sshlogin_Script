@@ -1,0 +1,142 @@
+#!/bin/bash
+ssh_dir=/home/zhaohaitao/.CFG_cmd/ssh_dir
+ping_dir=$ssh_dir/ping_dir
+pw="$ssh_dir/password.lst"
+
+#echo "$ssh_dir"
+function color(){
+    blue="\033[0;36m"
+    red="\033[0;31m"
+    green="\033[0;32m"
+    close="\033[m"
+    case $1 in
+        blue)
+            echo -e "$blue $2 $close"
+        ;;
+        red)
+            echo -e "$red $2 $close"
+        ;;
+        green)
+            echo -e "$green $2 $close"
+        ;;
+        *)
+            echo "Input color error!!"
+        ;;
+    esac
+}
+
+function copyright(){
+    echo "##########################"
+    color blue "   SSH Login Platform   "
+    echo "##########################"
+#    echo
+}
+
+function underline(){
+    echo "-----------------------------------------"
+}
+
+function echo_ping(){
+	[[ $1 == "--ping" ]] && reset
+#    echo "$1"
+	ps=`ps -ef | grep ping | awk '{if($8 == "ping") print}'`
+#	[[ $ps == '' ]]  && echo "$ps"
+	if [[ $ps == '' ]]; then
+		echo "ping IP is not start"
+	else
+		echo "$ps"
+	fi
+
+	if [[ $1 == "--ping" ]]; then
+	read -p '
+[0] ping_all 
+[1] ping_kill 
+[回车跳过]: ' ping
+	[[ $ping == 0 ]] && ping_start
+	[[ $ping == 1 ]] && ping_kill
+    fi
+}
+
+function ping_start(){
+	line=$(wc -l $pw|awk '{print $1}')
+	for ((i=1; i < line + 2; i++))
+	do
+		ip=$(cat $pw | sed -n "${i}p" | awk -F ":" '{print $2}')
+		[[ $ip != '---------------' ]] && [[ $ip != '' ]] && [[ $ip != '127.0.0.1' ]] && ping $ip >$ping_dir/$ip.txt &
+	done
+}
+
+function ping_kill(){
+	line=$(wc -l $pw|awk '{print $1}')
+	for ((i=1; i < line + 2; i++))
+	do
+		ip=$(cat $pw | sed -n "${i}p" | awk -F ":" '{print $2}')
+		for ((j = 0; j < 5; j++))
+		do
+			p_id=`ps -ef | grep $ip  2>/dev/null| awk '{print $2,$8,$9}' | sed -n '1p' | awk '{if($2 == "ping") print $1}'`
+			kill $p_id 2>/dev/null
+		done
+		rm -rf $ping_dir/$ip.txt
+	done
+}
+
+function main(){
+while [ True ];do
+    echo "序号 |       主机      | 说明"
+    underline
+    awk 'BEGIN {FS=":"} {printf("\033[0;31m% 3s \033[m | %15s | %s\n",$1,$2,$6)}' $ssh_dir/password.lst
+    color red " q  |       exit      |   退出	"
+    underline
+    read -p '[*] 选择主机: ' number
+    ipaddr=$(awk -v num=$number 'BEGIN {FS=":"} {if($1 == num) {print $2}}' $pw)
+    port=$(awk -v num=$number 'BEGIN {FS=":"} {if($1 == num) {print $3}}' $pw)
+    username=$(awk -v num=$number 'BEGIN {FS=":"} {if($1 == num) {print $4}}' $pw)
+    passwd=$(awk -v num=$number 'BEGIN {FS=":"} {if($1 == num) {print $5}}' $pw)
+    
+    case $number in
+        [0-9])
+            echo $passwd | grep -q ".pem$"
+            RETURN=$?
+            read -p '[*] 选择高低阶板卡，输入： 高阶IP；低阶IP；回车：跳过
+            ' IP
+            if [[ $RETURN == 0 ]];then
+                ssh -i $ssh_dir/keys/$passwd $username@$ipaddr -p $port
+                echo "ssh -i $ssh_dir/$passwd $username@$ipaddr -p $port"
+            elif [[ $IP == '' ]];then
+                expect -f $ssh_dir/ssh_login.exp $ipaddr $username $passwd $port
+            else
+                expect -f $ssh_dir/ssh_XSCB.exp $ipaddr $username $passwd $port $IP
+            fi
+            reset
+        ;;
+        [0-9][0-9])
+            expect -f $ssh_dir/ssh_login.exp $ipaddr $username $passwd $port
+            reset
+        ;;
+        2|[0-9])
+        ;;
+        "q"|"quit"|"exit"|"")
+            reset
+            exit
+        ;;
+        *)
+			reset
+            echo "Input  error!!! $number is not exist"
+        ;;
+    esac
+done
+}
+
+case "$1" in
+	--ping)
+        echo_ping $1
+		;;
+	--help)
+		echo "Usage: sshlogin (--ping) : select ping IP or ssh"
+		;;
+	*)
+	    copyright
+        echo_ping
+		main
+		;;
+esac

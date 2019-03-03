@@ -1,0 +1,127 @@
+#!/bin/bash
+
+ssh_dir=/home/zhaohaitao/.CFG_cmd/ssh_dir
+blue="\033[0;36m"
+red="\033[0;31m"
+green="\033[0;32m"
+close="\033[m"
+
+function color(){
+    case $1 in
+        blue)
+            echo -e "$blue $2 $close"
+        ;;
+        red)
+            echo -e "$red $2 $close"
+        ;;
+        green)
+            echo -e "$green $2 $close"
+        ;;
+        *)
+            echo "Input color error!!"
+        ;;
+    esac
+}
+
+function copyright(){
+    echo "##########################"
+    color blue "   SCP Login Platform   "
+    echo "##########################"
+    echo
+}
+
+function underline(){
+    echo "-----------------------------------------"
+}
+
+function set_argv(){
+    mk1=0
+    mk2=0
+    stop=`wc -l $ssh_dir/password.lst | awk '{print $1}' | sed -n '1p'`
+    for ((i=1; i<=stop; i++))
+    do
+        fst=`cat "$ssh_dir/password.lst" | sed -n "${i}p" | awk -F ":" '{print $1}'`
+		if [[ $number1 == $number2 ]]; then
+            if [[ $fst == $number1 ]]; then
+                mk1=1
+                mk2=1
+                line=`cat "$ssh_dir/password.lst" | sed -n "${i}p" | awk -F ":" -v dir=$dir1 -v file=$file1 -v rdir=$dir2 'BEGIN {OFS=":"}{if($1 == '$number1') {print $1,$2,$3,$4,$5,$6,dir,file,rdir >>"'$ssh_dir'/ping_dir/Cache"}}' 2>/dev/null`
+            else
+                line=`cat "$ssh_dir/password.lst" | sed -n "${i}p" | awk -F ":" -v dir=$dir1 -v file=$file1 -v rdir=$dir2 'BEGIN {OFS=":"}{if($1 != '$number1') {print >>"'$ssh_dir'/ping_dir/Cache"}}' 2>/dev/null`
+            fi
+        else
+            if [[ $fst == $number1 ]]; then
+                mk1=1
+                line=`cat "$ssh_dir/password.lst" | sed -n "${i}p" | awk -F ":" -v dir=$dir1 -v file=$file1 -v rdir=$dir2 'BEGIN {OFS=":"}{if($1 == '$number1') {print $1,$2,$3,$4,$5,$6,dir,file,$9 >>"'$ssh_dir'/ping_dir/Cache"}}' 2>/dev/null`
+            elif [[ $fst == $number2 ]]; then
+                mk2=1
+                line=`cat "$ssh_dir/password.lst" | sed -n "${i}p" | awk -F ":" -v dir=$dir1 -v file=$file1 -v rdir=$dir2 'BEGIN {OFS=":"}{if($1 == '$number2') {print $1,$2,$3,$4,$5,$6,$7,$8,rdir >>"'$ssh_dir'/ping_dir/Cache"}}' 2>/dev/null`
+            else
+                line=`cat "$ssh_dir/password.lst" | sed -n "${i}p" | awk -F ":" -v dir=$dir1 -v file=$file1 -v rdir=$dir2 'BEGIN {OFS=":"}{if($1 != '$number1') {if($1 != '$number2') {print >>"'$ssh_dir'/ping_dir/Cache"}}}' 2>/dev/null`
+            fi
+        fi
+    done
+    [[ $success == '100%' ]] && [[ $mk1 == 1 ]] && [[ $mk2 == 1 ]] && mv $ssh_dir/password.lst $ssh_dir/password.bak
+    [[ $success == '100%' ]] && [[ $mk1 == 1 ]] && [[ $mk2 == 1 ]] && mv $ssh_dir/ping_dir/Cache $ssh_dir/password.lst
+    mv $ssh_dir/ping_dir/Cache /$ssh_dir/ping_dir/scp_Cache 2>/dev/null
+}
+
+function scp_call(){
+    Cache_dir="'$ssh_dir'/ping_dir/Cache"
+	print=`expect -f $ssh_dir/scp.exp $ipaddr1 $username1 $passwd1 $port1 $file_dir1 $ipaddr2 $username2 $passwd2 $port2 $file_dir2 $file1`
+    success=`echo "$print" | sed -n '$p' | awk '{print $7}'`
+    echo "$print" | sed -n '$p'
+}
+
+function select_PC(){
+	reset
+	copyright
+    echo "序号 |       主机      | 说明"
+    underline
+    awk 'BEGIN {FS=":"} {printf("\033[0;31m% 3s \033[m | %15s | %s\n",$1,$2,$6)}' $ssh_dir/password.lst
+    color red " q  |       exit      |   退出	"
+    underline
+    read -p '[*] 选择发送PC: ' number1
+    pw="$ssh_dir/password.lst"
+    ipaddr1=$(awk -v num=$number1 'BEGIN {FS=":"} {if($1 == num) {print $2}}' $pw)
+    port1=$(awk -v num=$number1 'BEGIN {FS=":"} {if($1 == num) {print $3}}' $pw)
+    username1=$(awk -v num=$number1 'BEGIN {FS=":"} {if($1 == num) {print $4}}' $pw)
+    passwd1=$(awk -v num=$number1 'BEGIN {FS=":"} {if($1 == num) {print $5}}' $pw)
+	dir1=$(awk -v num=$number1 'BEGIN {FS=":"} {if($1 == num) {print $7}}' $pw)
+	file1=$(awk -v num=$number1 'BEGIN {FS=":"} {if($1 == num) {print $8}}' $pw)
+	file_dir1=$dir1/$file1
+	echo -e "    发送文件：$blue $file_dir1 $close"
+	read -p '[1] 发送目录[回车默认]: ' dir1
+	read -p '[2] 发送文件[回车默认]: ' file1
+   	[[ $dir1 == '' ]] && dir1=$(awk -v num=$number1 'BEGIN {FS=":"} {if($1 == num) {print $7}}' $pw)
+	[[ $file1 == '' ]] && file1=$(awk -v num=$number1 'BEGIN {FS=":"} {if($1 == num) {print $8}}' $pw)
+	file_dir1=$dir1/$file1
+	underline
+		
+    read -p '[*] 选择接收PC: ' number2
+    pw="$ssh_dir/password.lst"
+    ipaddr2=$(awk -v num=$number2 'BEGIN {FS=":"} {if($1 == num) {print $2}}' $pw)
+    port2=$(awk -v num=$number2 'BEGIN {FS=":"} {if($1 == num) {print $3}}' $pw)
+    username2=$(awk -v num=$number2 'BEGIN {FS=":"} {if($1 == num) {print $4}}' $pw)
+    passwd2=$(awk -v num=$number2 'BEGIN {FS=":"} {if($1 == num) {print $5}}' $pw)
+	dir2=$(awk -v num=$number2 'BEGIN {FS=":"} {if($1 == num) {print $9}}' $pw)
+	file_dir2=$dir2/$file2
+	echo -e "    接收目录：$blue $file_dir2 $close"
+	read -p '[1] 接收目录[回车默认]: ' dir2
+	read -p '[2] 接收文件名[回车跳过]: ' file2
+	[[ $dir2 == '' ]] && dir2=$(awk -v num=$number2 'BEGIN {FS=":"} {if($1 == num) {print $9}}' $pw)
+	file_dir2=$dir2/$file2
+	color red "	————————————————————————————————————————————————————————————————————————————————————————————————————"
+	echo -e "	$red $ipaddr1 $close $blue $file_dir1 $close—————————→$red $ipaddr2 $close $blue $file_dir2 $close"
+	color red "	————————————————————————————————————————————————————————————————————————————————————————————————————"
+	read -p '[3] 确认发送[0:确认发送；回车：确认并设置参数默认] ' OK
+
+	if [[ $OK == '0' ]]; then
+		scp_call
+    elif [[ $OK == '' ]]; then
+        scp_call
+        set_argv
+	fi
+	[[ $file1 != '' ]] && rm -rf $ssh_dir/ping_dir/$file1
+}
+select_PC

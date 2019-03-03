@@ -1,0 +1,22 @@
+#!/usr/bin/expect -f
+set TARGET [lindex $argv 0]
+set USER [lindex $argv 1]
+set PASSWD [lindex $argv 2]
+set PORT [lindex $argv 3]
+set IP [lindex $argv 4]
+
+spawn ssh $USER@$TARGET -p $PORT
+set timeout 30
+expect {
+    "*yes/no" {send "yes\n"; exp_continue}
+    "*assword:" {send "$PASSWD\n"}
+}
+expect "*#*"
+send "ssh root@192.168.10.$IP\n"
+expect {
+    "*yes/no" {send "yes\n"; exp_continue}
+    "*assword:" {send "root\n"}
+}
+expect "*#*"
+send "reset\n"
+interact

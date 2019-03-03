@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+set TARGET1 [lindex $argv 0]
+set USER1 [lindex $argv 1]
+set PASSWD1 [lindex $argv 2]
+set PORT1 [lindex $argv 3]
+set file_1 [lindex $argv 4]
+set TARGET2 [lindex $argv 5]
+set USER2 [lindex $argv 6]
+set PASSWD2 [lindex $argv 7]
+set PORT2 [lindex $argv 8]
+set file_dir2 [lindex $argv 9]
+set filename [lindex $argv 10]
+
+
+spawn scp -P $PORT1 $USER1@$TARGET1:$file_1 /home/zhaohaitao/.CFG_cmd/ssh_dir/ping_dir/
+set timeout 30
+expect {
+    "*yes/no" {send "yes\r"; exp_continue}
+    "*assword:" {send "$PASSWD1\r"; exp_continue}
+}
+
+spawn scp -P $PORT2 /home/zhaohaitao/.CFG_cmd/ssh_dir/ping_dir/$filename $USER2@$TARGET2:$file_dir2 
+set timeout 30
+expect {
+    "*yes/no" {send "yes\r"; exp_continue}
+    "*assword:" {send "$PASSWD2\r"; exp_continue}
+}
