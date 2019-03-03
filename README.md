@@ -1,2 +1,2 @@
 # sshlogin_Script
-# ssh登陆自动化登陆脚本
+# ssh自动化登陆脚本
